@@ -1,4 +1,4 @@
-ChameleonProxy     http://cp.mdbybyd.top/  
+ChameleonProxy     http://mb.laog.ooo/CProxy
 ======  
   
 C语言写的一个TCP、DNS代理客户端  
@@ -8,7 +8,7 @@ C语言写的一个TCP、DNS代理客户端
 ### 编译:  
 ~~~~~
 Linux/Android:  
-    make [DEFS=-DXMEMCPY]  
+    make
 Android-ndk:  
     ndk-build  
 ~~~~~
