@@ -17,6 +17,8 @@ Android-ndk:
 ./CProxy CProxy.conf  
 关闭：  
 ./CProxy stop  
+重启：  
+./CProxy restart CProxy.conf  
 查询运行状态：  
 ./CProxy status  
 

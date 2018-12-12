@@ -78,6 +78,7 @@ int main(int argc, char *argv[])
         puts("ChameleonProxy(" VERSION ")\n"
         "启动命令:\n    CProxy CProxy.conf\n"
         "结束命令:\n    CProxy stop\n"
+        "重启命令:\n    CProxy restart CProxy.conf\n"
         "检测命令:\n    CProxy status\n");
         return argc < 2 ? 1 : 0;
     }

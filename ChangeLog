@@ -78,5 +78,6 @@ CProxy v1.7 (2018-12-12)
     优化TCP处理
     修复1.6进后台出现文件下载现象
     httpDNS和httpUDP添加编码过GFW功能，更好地配合翻墙软件，需要httpDNS和httpUDP服务端支持
+    添加restart命令，用法: CProxy restart CProxy.conf
     httpDNS: https://github.com/mmmdbybyd/httpDNS
     httpUDP: http://cproxy.saomeng.club/static/udpServer.c
