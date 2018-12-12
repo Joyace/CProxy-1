@@ -6,6 +6,7 @@
 #include "http_request.h"
 #include "common.h"
 #include "httpdns.h"
+#include "httpudp.h"
 #include "conf.h"
 
 #endif

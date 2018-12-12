@@ -16,7 +16,7 @@ char *ssl_req_replace(char *str)
 void string_pretreatment(char *str)
 {
     int len;
-    
+
     //删除换行和缩进
     char *lf, *p;
     while ((lf = strchr(str, '\n')) != NULL)
@@ -173,6 +173,16 @@ void parse_global_module(char *content)
             else
                 conf.dns_listen_fd = udp_listen((char *)"127.0.0.1", atoi(val_begin));
         }
+        else if (strcasecmp(var, "udp_listen") == 0)
+        {
+            if ((p = strchr(val_begin, ':')) != NULL && p - val_begin <= 15)
+            {
+                *p = '\0';
+                conf.udp_listen_fd = udp_listen(val_begin, atoi(p+1));
+            }
+            else
+                conf.udp_listen_fd = udp_listen((char *)"0.0.0.0", atoi(val_begin));
+        }
         else if (strcasecmp(var, "strict") == 0 && strcasecmp(val_begin, "on") == 0)
         {
             conf.strict_modify = 1;
@@ -222,6 +232,7 @@ int8_t parse_tcp_module(char *content, struct tcp_conf *tcp,int8_t https)
         {
             m->flag = DEL_HDR;
             m->del_hdr = strdup(val_begin);
+            m->del_hdr_len = strlen(m->del_hdr);
             if (m->del_hdr == NULL)
                 return 1;
         }
@@ -350,6 +361,10 @@ int8_t parse_httpdns_module(char *content)
         {
             conf.dns.cacheLimit = atoi(val_begin);
         }
+        else if (strcasecmp(var, "encode") == 0)
+        {
+            conf.dns.encodeCode = (int8_t)atoi(val_begin);
+        }
 
         content = strchr(val_end, '\n');
     }
@@ -357,9 +372,46 @@ int8_t parse_httpdns_module(char *content)
     return 0;
 }
 
+int8_t parse_httpudp_module(char *content)
+{
+    char *var, *val_begin, *val_end, *p;
+    while (set_var_val(content, &var, &val_begin, &val_end) == 0)
+    {
+        if (strcasecmp(var, "addr") == 0)
+        {
+            if ( (p = strchr(val_begin, ':')) != NULL && p - val_begin <= 15)
+            {
+                *p = '\0';
+                conf.udp.dst.sin_port = htons(atoi(p+1));
+            }
+            else
+            {
+                conf.udp.dst.sin_port = htons(80);
+            }
+            conf.udp.dst.sin_addr.s_addr = inet_addr(val_begin);
+        }
+        else if (strcasecmp(var, "http_req") == 0)
+        {
+            conf.udp.http_request = strdup(val_begin);
+            if (conf.udp.http_request == NULL)
+                return 1;
+        }
+        else if (strcasecmp(var, "encode") == 0)
+        {
+            conf.udp.encodeCode = (int8_t)atoi(val_begin);
+        }
+
+
+        content = strchr(val_end, '\n');
+    }
+
+    return 0;
+}
+
+
 void read_conf(char *path)
 {
-    char *buff, *global, *http, *https, *httpdns;
+    char *buff, *global, *http, *https, *httpdns, *httpudp;
     FILE *file;
     long file_size;
 
@@ -378,32 +430,40 @@ void read_conf(char *path)
     buff[file_size] = '\0';
 
     memset((struct config *)&conf, 0, sizeof(conf));
-    conf.http.dst.sin_family = conf.https.dst.sin_family = conf.dns.dst.sin_family = AF_INET;
-    conf.uid = -1;
+    conf.http.dst.sin_family = conf.https.dst.sin_family = conf.dns.dst.sin_family = conf.udp.dst.sin_family = AF_INET;
+    conf.tcp_listen_fd = conf.dns_listen_fd = conf.udp_listen_fd = conf.uid = -1;
     /* 读取global模块内容 */
     if ((global = read_module(buff, "global")) == NULL)
-        error("wrong config file or out of memory.");
+            error("read global module error");
     parse_global_module(global);
     free(global);
 
-    if (conf.tcp_listen_fd)
+    if (conf.tcp_listen_fd >= 0)
     {
         /* 读取http模块内容 */
         if (((http = read_module(buff, "http")) == NULL) || parse_tcp_module(http, &conf.http, 0) != 0)
-            error("wrong config file or out of memory.");
+            error("read http module error");
         free(http);
-    
+
         /* 读取https模块 */
         if (((https = read_module(buff, "https")) == NULL) || parse_tcp_module(https, &conf.https, 1) != 0)
-            error("wrong config file or out of memory.");
+            error("read https module error");
         free(https);
     }
 
     /* 读取httpdns模块 */
-    if (conf.dns_listen_fd)
+    if (conf.dns_listen_fd >= 0)
     {
         if ((httpdns = read_module(buff, "httpdns")) == NULL || parse_httpdns_module(httpdns) != 0)
-            error("wrong config file or out of memory.");
+            error("read httpdns module error");
         free(httpdns);
+    }
+
+    /* 读取httpudp模块 */
+    if (conf.udp_listen_fd >= 0)
+    {
+        if ((httpudp = read_module(buff, "httpudp")) == NULL || parse_httpudp_module(httpudp) != 0)
+            error("read httpudp module error");
+        free(httpudp);
     }
 }

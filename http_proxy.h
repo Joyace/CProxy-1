@@ -34,15 +34,13 @@ typedef struct connection {
     unsigned reqType :3; //请求类型
     unsigned connType :1; //判断是客户端还是服务端
     unsigned first_connection :1; //发送客户端数据前是否首先进行CONNECT连接
-    unsigned established :1; //当服务端完成连接时是1，没有完成连接时是0
-} conn_t;
+} tcp_t;
 
 extern int tcp_listen(char *ip, int port);
 extern void tcp_init();
 extern void tcp_loop();
-extern int8_t make_ssl(conn_t *client);
+extern int8_t make_ssl(tcp_t *client);
 extern uint8_t request_type(char *req);
-extern void rsp_stats_msg(conn_t *client, char *host);
 
 extern struct ssl_string *ssl_str;
 extern uint16_t tcp_listen_port;

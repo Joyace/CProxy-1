@@ -64,3 +64,35 @@ char *replace(char *replace_memory, int *replace_memory_len, const char *src, co
     replace_memory[*replace_memory_len] = '\0';
     return replace_memory;
 }
+
+/* 对数据进行编码 */
+void dataEncode(char *data, int data_len, int8_t code)
+{
+    while (data_len-- > 0)
+        data[data_len] ^= code;
+}
+
+/* 监听一个UDP接口 */
+int udp_listen(char *ip, int port)
+{
+    int fd, opt = 1;
+
+    if ((fd=socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    {
+        perror("udp socket()");
+        exit(1);
+    }
+    setsockopt(fd, SOL_IP, IP_TRANSPARENT, &opt, sizeof(opt));
+    setsockopt(fd, SOL_IP, IP_RECVORIGDSTADDR, &opt, sizeof(opt));
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_addr.s_addr = inet_addr(ip);
+    addr.sin_port = htons(port);
+    addr.sin_family = AF_INET;
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
+    {
+        perror("udp bind()");
+        exit(1);
+    }
+
+    return fd;
+}

@@ -12,7 +12,7 @@ set_first strrep regrep关键字: [M]，[H]，[U]，[url]，[V]，\0，\r，\n�
 global {
     设置运行uid
     uid = 3004;
-    
+
     http处理模式[wap wap_connect net_proxy net_connect] 不设置则为net
     wap: 所有请求走代理ip
     wap_connect: 所有请求走https代理ip
@@ -21,13 +21,14 @@ global {
     net: HTTP请求直连目标服务器
     mode = wap;
 
-    //TCP，DNS监听地址，不填IP则为默认IP
+    //TCP，DNS，UDP监听地址，不填IP则为默认IP。DNS和UDP的端口不能重复，并且不建议用53  67端口
     tcp_listen = 10086;
     dns_listen = 10086;
+    udp_listen = 10010;
 
     //进程数
     procs = 2;
-    
+
     //严格修改请求头，对于一次读取数据连续的多个请求头（比如qq浏览器加载"看热点"），全部修改，默认只修改第一个请求头
     strict = on;
 }
@@ -36,17 +37,17 @@ global {
 http {
     //普通http请求只留GET POST联网
     only_get_post = on;
-    
+
     //http端口，其他端口先建立CONNECT连接
     http_port = 80,8080,10086;
-    
+
     // http目标地址
     addr = 10.0.0.172:80;
-    
+
     //删除Host行，不区分大小写
     del_hdr = host;
     del_hdr = X-Online-Host;
-    
+
     //如果搜索到以下字符串则进行https代理(net模式下无效)
     proxy_https_string = WebSocket;
     proxy_https_string = Upgrade:;
@@ -55,12 +56,12 @@ http {
     set_first = "[M] [U] [V]\r\n Host: rd.go.10086.cn\r\n";
     //字符串替换，区分大小写
     //strrep = "Host:" -> "Cloud:";
-    
+
     //正则表达式替换，不区分大小写
     //regrep = "^Host:[^\n]*\n" -> "Meng: [H]\r\n";
 }
 
-//https模块，没有only_get_post、http_port和download_max_size，其他语法跟http一样
+//https模块，没有only_get_post, proxy_https_string，其他语法跟http一样
 https {
     addr = 10.0.0.172:80;
     del_hdr = host;
@@ -71,11 +72,30 @@ https {
 httpdns {
     //http请求目标地址
     addr = 182.254.118.118;
+
     //缓存路径，关闭的时候不要加-9，否则缓存无法写入缓存
     //cachePath = dns.cache;
+
     //限制缓存数目
     //cacheLimit = 64;
+
+    //dns请求域名编码，国外服务器搭建httpDNS云免用
+    //代码1-127要与服务端一致，默认为0不编码
+    encode = 0;
+
     //http请求头，不设置则用http模块修改后的默认请求，[D]为查询的域名
     //http_req = "[M] http://rd.go.10086.cn/d?dn=[D] [V]\r\nHost: rd.go.10086.cn\r\nConnection: close\r\n\r\n";
 }
 
+//httpUDP模块，默认使用HTTPS模块
+httpudp {
+    //http请求目标地址
+    addr = 6.6.6.6:669;
+
+    //httpUDP请求编码，国外服务器云免用
+    //代码1-127要与服务端一致，默认为0不编码
+    encode = 0;
+
+    //http请求，不设置则使用HTTPS模块修改后的请求
+    //http_req = "[M] / [V]\r\nHost: rd.go.10086.cn\r\n";
+}

@@ -12,10 +12,8 @@ struct dns_cache {
     unsigned int question_len;
 };
 
-extern void write_dns_cache(int sig);
-extern void *dns_loop();
+extern void *dns_loop(void *nullPtr);
 extern int8_t read_cache_file();
-extern void dns_init();
 extern int udp_listen(char *ip, int port);
 
 extern pid_t child_pid;

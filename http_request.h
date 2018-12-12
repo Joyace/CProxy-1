@@ -2,6 +2,7 @@
 #define HTTP_REQUEST_H
 
 #include "main.h"
+#include <regex.h>
 
 /* 请求头修改操作 */
 #define SET_FIRST 1
@@ -10,7 +11,6 @@
 #define STRREP 4
 
 extern int8_t modify_request();
-extern char *splice_ip_port(char *ip, uint16_t port);
 
 struct http_request {
     int other_len, header_len;

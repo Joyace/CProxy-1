@@ -67,3 +67,16 @@ CProxy v1.4 (2017-10-16)
 
 CProxy v1.5 (2018-10-13)
     修复崩溃
+
+CProxy v1.6 (2018-11-23)
+    优化dns
+    添加HTTPUDP
+    修复部分内存泄露
+
+CProxy v1.7 (2018-12-12)
+    修复崩溃现象(待测)
+    优化TCP处理
+    修复1.6进后台出现文件下载现象
+    httpDNS和httpUDP添加编码过GFW功能，更好地配合翻墙软件，需要httpDNS和httpUDP服务端支持
+    httpDNS: https://github.com/mmmdbybyd/httpDNS
+    httpUDP: http://cproxy.saomeng.club/static/udpServer.c

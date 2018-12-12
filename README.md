@@ -1,4 +1,4 @@
-ChameleonProxy     http://mb.laog.ooo/CProxy
+ChameleonProxy     http://cproxy.saomeng.club/
 ======  
   
 C语言写的一个TCP、DNS代理客户端  

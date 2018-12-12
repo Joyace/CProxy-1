@@ -2,7 +2,7 @@
 #include <sys/stat.h>
 #include "httpdns.h"
 
-#define DNS_MAX_CONCURRENT 128
+#define DNS_MAX_CONCURRENT 512
 #define DNS_REQUEST_MAX_SIZE 512
 #define HTTP_RSP_SIZE 1024
 
@@ -106,7 +106,7 @@ int8_t read_cache_file()
 }
 
 /* 程序结束时将缓存写入文件 */
-void write_dns_cache(int sig)
+static void write_dns_cache(int sig)
 {
     //子进程先写入缓存
     if (child_pid)
@@ -182,7 +182,7 @@ static void cache_record(dns_t *dns)
 }
 
 /* 分析DNS请求 */
-int8_t parse_dns_request(char *dns_req, dns_t *dns)
+static int8_t parse_dns_request(char *dns_req, dns_t *dns)
 {
     int len;
 
@@ -191,9 +191,9 @@ int8_t parse_dns_request(char *dns_req, dns_t *dns)
     //判断请求类型
     switch ((dns->query_type = *(dns_req + 2 + dns->host_len)))
     {
-        case 28:    //查询ipv6地址
-            dns->query_type = 1; //httpDNS不支持查询ipv6，所以改成ipv4
-            
+        //case 28:    //查询ipv6地址
+            //dns->query_type = 1; //httpDNS不支持查询ipv6，所以改成ipv4
+
         case 1:    //查询ipv4地址
             dns->host = strdup(dns_req);
             if (dns->host == NULL)
@@ -209,14 +209,14 @@ int8_t parse_dns_request(char *dns_req, dns_t *dns)
                 dns->host[len++] = '.';
             }
             return 0;
-            
+
         default:
             return 1;
     }
 }
 
 /* 回应dns客户端 */
-int8_t respond_client(dns_t *dns)
+static int8_t respond_client(dns_t *dns)
 {
     char *p;
 
@@ -287,7 +287,7 @@ int8_t respond_client(dns_t *dns)
 void http_out(dns_t *out)
 {
     int write_len;
-    
+
     if (connect_request && out->sent_CONNECT_len < connect_request_len)
     {
         write_len = write(out->fd, connect_request + out->sent_CONNECT_len, connect_request_len - out->sent_CONNECT_len);
@@ -308,7 +308,7 @@ void http_out(dns_t *out)
         }
         return;
     }
-    
+
     write_len = write(out->fd, out->http_request, out->http_request_len);
     if (write_len == out->http_request_len)
     {
@@ -335,7 +335,7 @@ void http_in(dns_t *in)
 {
     char *ip_ptr, *p;
     int len, i;
-    
+
     if (connect_request && in->sent_CONNECT_len > connect_request_len)
     {
         in->sent_CONNECT_len--;
@@ -355,7 +355,7 @@ void http_in(dns_t *in)
         epoll_ctl(dns_efd, EPOLL_CTL_MOD, in->fd, &dns_ev);
         return;
     }
-    
+
     len = read(in->fd, http_rsp, HTTP_RSP_SIZE);
     if (len <= 0)
     {
@@ -410,7 +410,7 @@ void http_in(dns_t *in)
             }
         }
     } while ((p = strchr(p, '\n')) != NULL);
-    
+
     error:
     free(in->reply);
     in->reply = NULL;
@@ -421,7 +421,7 @@ static void new_client()
 {
     dns_t *dns;
     int i, len;
-    
+
     for (i = 0; i < DNS_MAX_CONCURRENT; i++)
     {
         if (dns_list[i].query_type == 0)
@@ -467,7 +467,6 @@ static void new_client()
     {
         close(dns->fd);
         free(dns->host);
-        free(dns->http_request);
         dns->query_type = 0;
         return;
     }
@@ -484,6 +483,7 @@ static void new_client()
     free(dns->host);
     if (dns->http_request == NULL)
     {
+        epoll_ctl(dns_efd, EPOLL_CTL_DEL, dns->fd, NULL);
         close(dns->fd);
         dns->query_type = 0;
         return;
@@ -495,15 +495,15 @@ void dns_init()
 {
     char dest[22], *ip;
     uint16_t port;
-    
+
     port = ntohs(conf.dns.dst.sin_port);
     ip = inet_ntoa(conf.dns.dst.sin_addr);
     sprintf(dest, "%s:%u", ip, port);
     if (conf.dns.http_req == NULL)
     {
-        conn_t http;
+        tcp_t http;
 
-        memset(&http, 0, sizeof(conn_t));
+        memset(&http, 0, sizeof(tcp_t));
         http.reqType = HTTP;
         http.host = (char *)1;  //如果为NULL，modify_request函数可能会使其指向动态分配内存
         if (modify_request(strdup(HTTPDNS_REQUEST), strlen(HTTPDNS_REQUEST), &http) != 0)
@@ -537,7 +537,7 @@ void dns_init()
     /* 构建CONNECT请求头 */
     if (conf.mode == WAP_CONNECT || (conf.mode == NET_CONNECT && port != 80 && port != 8080))
     {
-        conn_t ssl;
+        tcp_t ssl;
 
         ssl.host = NULL;
         ssl.original_port = port;
@@ -548,7 +548,7 @@ void dns_init()
         connect_request_len = ssl.connect_len;
         memcpy(&conf.dns.dst, &conf.https.dst, sizeof(conf.dns.dst));
     }
-    
+
     dns_efd = epoll_create(DNS_MAX_CONCURRENT+1);
     if (dns_efd < 0)
     {
@@ -561,18 +561,22 @@ void dns_init()
     epoll_ctl(dns_efd, EPOLL_CTL_ADD, conf.dns_listen_fd, &dns_ev);
     memset(dns_list, 0, sizeof(dns_list));
     //程序关闭时写入dns缓存
-    signal(SIGTERM, write_dns_cache);
-    signal(SIGHUP, write_dns_cache);
-    signal(SIGINT, write_dns_cache);
-    signal(SIGABRT, write_dns_cache);
-    signal(SIGILL, write_dns_cache);
-    signal(SIGSEGV, write_dns_cache);
+    if (cfp)
+    {
+        signal(SIGTERM, write_dns_cache);
+        signal(SIGHUP, write_dns_cache);
+        signal(SIGINT, write_dns_cache);
+        signal(SIGABRT, write_dns_cache);
+        signal(SIGILL, write_dns_cache);
+        signal(SIGSEGV, write_dns_cache);
+    }
 }
 
-void *dns_loop()
+void *dns_loop(void *nullPtr)
 {
     int n;
 
+    dns_init();
     while (1)
     {
         n = epoll_wait(dns_efd, dns_evs, DNS_MAX_CONCURRENT + 1, -1);
@@ -595,27 +599,6 @@ void *dns_loop()
             }
         }
     }
-    
+
     return NULL;  //消除编译警告
-}
-
-int udp_listen(char *ip, int port)
-{
-    int fd;
-    
-    if ((fd=socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-    {
-        perror("udp socket");
-        exit(1);
-    }
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip);
-    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
-    {
-        perror("udp bind");
-        exit(1);
-    }
-
-    return fd;
 }
